@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Core\Validator;
 use JsonException;
 
 class BaseController
@@ -34,6 +35,20 @@ class BaseController
 
         if (!is_array($data)) {
             return [];
+        }
+
+        return $data;
+    }
+
+    /**
+     * @throws JsonException
+     */
+    protected function validate(array $data, array $rules): array
+    {
+        $validator = new Validator($data, $rules);
+
+        if (!$validator->validate()) {
+            $this->json(['errors' => $validator->errors()], 422);
         }
 
         return $data;

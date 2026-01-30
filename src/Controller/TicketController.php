@@ -40,9 +40,10 @@ class TicketController extends BaseController
     {
         $input = $this->getJsonInput();
 
-        if (empty($input['title']) || empty($input['description'])) {
-            $this->error('Title and description are required', 422);
-        }
+        $this->validate($input, [
+            'title'       => 'required|string|min:5|max:255',
+            'description' => 'required|string|min:10'
+        ]);
 
         $statusId = $this->repository->findStatusIdByCode('todo');
         if (!$statusId) {
@@ -84,9 +85,9 @@ class TicketController extends BaseController
     {
         $input = $this->getJsonInput();
 
-        if (empty($input['status_code'])) {
-            $this->error('status_code is required', 422);
-        }
+        $this->validate($input, [
+            'status_code' => 'required|int'
+        ]);
 
         $newStatusId = $this->repository->findStatusIdByCode($input['status_code']);
         if (!$newStatusId) {

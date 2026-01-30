@@ -25,9 +25,10 @@ class AuthController extends BaseController
     {
         $input = $this->getJsonInput();
 
-        if (empty($input['login']) || empty($input['password'])) {
-            $this->error('Login and password are required', 422);
-        }
+        $this->validate($input, [
+            'login'    => 'required|string|min:3|max:50',
+            'password' => 'required|string|min:6|max:255'
+        ]);
 
         $login = trim($input['login']);
         $password = $input['password'];
@@ -56,9 +57,10 @@ class AuthController extends BaseController
     {
         $input = $this->getJsonInput();
 
-        if (empty($input['login']) || empty($input['password'])) {
-            $this->error('Login and password are required', 422);
-        }
+        $this->validate($input, [
+            'login'    => 'required|string|min:3|max:50',
+            'password' => 'required|string|min:6|max:255'
+        ]);
 
         $stmt = $this->db->prepare("SELECT * FROM users WHERE login = ?");
         $stmt->execute([$input['login']]);
