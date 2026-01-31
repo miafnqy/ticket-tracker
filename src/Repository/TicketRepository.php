@@ -46,7 +46,21 @@ class TicketRepository
 
         $result = $stmt->fetch();
 
-        return $result ?: null;
+        if (!$result) {
+            return null;
+        }
+
+        $stmtTags = $this->db->prepare("
+            SELECT t.name 
+            FROM tags t
+            JOIN ticket_tags tt ON t.id = tt.tag_id
+            WHERE tt.ticket_id = ?
+        ");
+
+        $stmtTags->execute([$id]);
+        $result['tags'] = $stmtTags->fetchAll(PDO::FETCH_COLUMN);
+
+        return $result;
     }
 
     public function create(int $userId, int $statusId, string $title, string $description): int
@@ -73,6 +87,31 @@ class TicketRepository
         $id = $stmt->fetchColumn();
 
         return $id ? (int)$id : null;
+    }
+
+    public function attachTags(int $ticketId, array $tagNames): void
+    {
+        if (empty($tagNames)) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($tagNames), '?'));
+
+        $sql = "SELECT id FROM tags WHERE name IN ($placeholders)";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($tagNames);
+        $tags = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        $insertSql = "INSERT INTO ticket_tags (ticket_id, tag_id) VALUES (?, ?)";
+        $stmt = $this->db->prepare($insertSql);
+
+        foreach ($tags as $tagId) {
+            try {
+                $stmt->execute([$ticketId, $tagId]);
+            } catch (\PDOException $e) {
+                // ticket_tag connection already exists
+            }
+        }
     }
 
     private function getBaseSelect(): string

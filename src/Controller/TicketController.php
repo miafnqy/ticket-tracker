@@ -57,6 +57,10 @@ class TicketController extends BaseController
             trim($input['description'])
         );
 
+        if (isset($input['tags']) && is_array($input['tags'])) {
+            $this->repository->attachTags($newId, $input['tags']);
+        }
+
         $ticket = $this->repository->find($newId);
 
         $this->json(['message' => 'Ticket created', 'ticket' => $ticket], 201);

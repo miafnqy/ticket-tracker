@@ -47,6 +47,17 @@ $router->mount('/api', function () use ($router) {
 
     $router->get('/tickets/(\d+)/comments', 'CommentController@index');
     $router->post('/tickets/(\d+)/comments', 'CommentController@store');
+
+    // admin routes
+    // make admin middleware later
+
+    $router->get('/admin/statuses', 'Admin\StatusController@index');
+    $router->post('/admin/statuses', 'Admin\StatusController@store');
+    $router->delete('/admin/statuses/(\d+)', 'Admin\StatusController@destroy');
+
+    $router->get('/admin/tags', 'Admin\TagController@index');
+    $router->post('/admin/tags', 'Admin\TagController@store');
+    $router->delete('/admin/tags/(\d+)', 'Admin\TagController@destroy');
 });
 
 $router->set404(function () {
