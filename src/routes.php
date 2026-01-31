@@ -44,6 +44,9 @@ $router->mount('/api', function () use ($router) {
     $router->get('/tickets/(\d+)', 'TicketController@show');
 
     $router->patch('/tickets/(\d+)/status', 'TicketController@updateStatus');
+
+    $router->get('/tickets/(\d+)/comments', 'CommentController@index');
+    $router->post('/tickets/(\d+)/comments', 'CommentController@store');
 });
 
 $router->set404(function () {
