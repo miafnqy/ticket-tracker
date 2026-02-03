@@ -41,8 +41,8 @@ class TicketController extends BaseController
         $input = $this->getJsonInput();
 
         $this->validate($input, [
-            'title'       => 'required|string|min:5|max:255',
-            'description' => 'required|string|min:10'
+            'title'       => 'required|string|min:2|max:255',
+            'description' => 'required|string|min:1'
         ]);
 
         $statusId = $this->repository->findStatusIdByCode('todo');
@@ -90,8 +90,9 @@ class TicketController extends BaseController
         $input = $this->getJsonInput();
 
         $this->validate($input, [
-            'title' => 'required|string|min:5|max:255',
-            'status_code' => 'required|string|min:2|max:50'
+            'title' => 'required|string|min:2|max:255',
+            'status_code' => 'required|string|min:2|max:50',
+            'description' => 'required|string|min:1'
         ]);
 
         $this->repository->update(
