@@ -84,10 +84,11 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Статус</label>
+                            <label class="form-label">Статус</label>
                             <select id="status" class="form-select">
                                 <option value="todo">New (To Do)</option>
                                 <option value="in_progress">In Progress</option>
-                                <option value="done">Done</option>
+                                <option value="review">Ready For Review</option> <option value="done">Done</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -100,6 +101,49 @@
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">Создать</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать тикет</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-form">
+                    <input type="hidden" id="edit-id"> <div class="mb-3">
+                    <label class="form-label">Тема</label>
+                    <input type="text" id="edit-title" class="form-control" required>
+                </div>
+                    <div class="mb-3">
+                        <label class="form-label">Описание</label>
+                        <textarea id="edit-description" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Статус</label>
+                            <label class="form-label">Статус</label>
+                            <select id="edit-status" class="form-select">
+                                <option value="todo">To Do</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="review">Ready For Review</option> <option value="done">Done</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Теги</label>
+                            <select id="edit-tags" class="form-select" multiple>
+                                <option value="Bug">Bug</option>
+                                <option value="Feature">Feature</option>
+                                <option value="Urgent">Urgent</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Сохранить</button>
                 </form>
             </div>
         </div>
@@ -197,29 +241,81 @@
     }
 
     function renderTable(tickets) {
-        ticketsBody.innerHTML = tickets.map(t => `
+        ticketsBody.innerHTML = tickets.map(t => {
+            const tagsData = (t.tags || []).join(',');
+
+            return `
                 <tr>
                     <td>${t.id}</td>
                     <td class="fw-bold">${t.title}</td>
                     <td>${getStatusBadge(t.status_code, t.status_name)}</td>
                     <td>${(t.tags || []).map(tag => `<span class="badge bg-secondary me-1">${tag}</span>`).join('')}</td>
                     <td class="text-muted small">${t.user_login}</td>
-                    <td class="text-muted small">${new Date(t.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary"
+                                onclick="openEditModal(${t.id}, '${t.title}', '${t.description}', '${t.status_code}', '${tagsData}')">
+                            ✏️
+                        </button>
+                    </td>
                 </tr>
-            `).join('');
+            `}).join('');
     }
 
     function getStatusBadge(code, name) {
         const colors = {
             'todo': 'secondary',
             'in_progress': 'primary',
-            'done': 'success'
+            'review': 'info',
+            'done': 'success',
         };
+        const textColor = code === 'review' ? 'text-dark' : '';
+
         const color = colors[code] || 'light';
-        return `<span class="badge bg-${color}">${name}</span>`;
+        return `<span class="badge bg-${color} ${textColor}">${name}</span>`;
     }
 
     checkAuth();
+
+    const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+
+    window.openEditModal = function(id, title, description, status, tagsString) {
+        document.getElementById('edit-id').value = id;
+        document.getElementById('edit-title').value = title;
+        document.getElementById('edit-description').value = description;
+        document.getElementById('edit-status').value = status;
+
+        const tags = tagsString.split(',').filter(t => t);
+        const select = document.getElementById('edit-tags');
+
+        Array.from(select.options).forEach(option => {
+            option.selected = tags.includes(option.value);
+        });
+
+        editModal.show();
+    };
+
+    document.getElementById('edit-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const id = document.getElementById('edit-id').value;
+        const title = document.getElementById('edit-title').value;
+        const description = document.getElementById('edit-description').value;
+        const status_code = document.getElementById('edit-status').value;
+        const tags = Array.from(document.getElementById('edit-tags').selectedOptions).map(o => o.value);
+
+        const res = await fetch(`${API_URL}/tickets/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, description, status_code, tags })
+        });
+
+        if (res.ok) {
+            editModal.hide();
+            checkAuth();
+        } else {
+            alert('Ошибка обновления');
+        }
+    });
 </script>
 </body>
 </html>

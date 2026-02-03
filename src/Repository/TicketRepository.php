@@ -16,25 +16,48 @@ class TicketRepository
         $this->db = Database::getInstance()->getConnection();
     }
 
-    public function findAll(?int $userId = null): array
+    public function findAll(): array
     {
-        $sql = $this->getBaseSelect();
+        $sql = "
+            SELECT 
+                t.id, 
+                t.user_id, 
+                t.status_id, 
+                t.title, 
+                t.description, 
+                t.created_at, 
+                t.updated_at,
+                s.name as status_name, 
+                s.code as status_code,
+                u.login as user_login,
+                GROUP_CONCAT(tags.name SEPARATOR ',') as tag_names
+            FROM tickets t
+            JOIN statuses s ON t.status_id = s.id
+            JOIN users u ON t.user_id = u.id
+            LEFT JOIN ticket_tags tt ON t.id = tt.ticket_id
+            LEFT JOIN tags ON tt.tag_id = tags.id
+            GROUP BY t.id
+            ORDER BY t.created_at DESC
+        ";
 
-        if ($userId) {
-            $sql .= " WHERE t.user_id = :user_id";
+        try {
+            $stmt = $this->db->query($sql);
+            $tickets = $stmt->fetchAll();
+        } catch (\PDOException $e) {
+            error_log("SQL Error in findAll: " . $e->getMessage());
+            return [];
         }
 
-        $sql .= " ORDER BY t.created_at DESC";
-
-        $stmt = $this->db->prepare($sql);
-
-        if ($userId) {
-            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        foreach ($tickets as &$ticket) {
+            if (!empty($ticket['tag_names'])) {
+                $ticket['tags'] = explode(',', $ticket['tag_names']);
+            } else {
+                $ticket['tags'] = [];
+            }
+            unset($ticket['tag_names']);
         }
 
-        $stmt->execute();
-
-        return $stmt->fetchAll();
+        return $tickets;
     }
 
     public function find(int $id): ?array
@@ -71,6 +94,47 @@ class TicketRepository
         $stmt->execute([$userId, $statusId, $title, $description]);
 
         return (int)$this->db->lastInsertId();
+    }
+
+    public function update(int $id, string $statusCode, string $title, string $description, array $tags = []): void
+    {
+        $oldTicket = $this->find($id);
+        $oldStatusCode = $oldTicket['status_code'] ?? '';
+
+        $newStatusId = $this->findStatusIdByCode($statusCode);
+
+        $stmt = $this->db->prepare("
+            UPDATE tickets 
+            SET title = :title, 
+                description = :description, 
+                status_id = :status_id 
+            WHERE id = :id
+        ");
+
+        $stmt->execute([
+            ':title' => $title,
+            ':description' => $description,
+            ':status_id' => $newStatusId,
+            ':id' => $id
+        ]);
+
+        if ($oldStatusCode !== $statusCode) {
+            $userId = $_SESSION['user_id'] ?? 1;
+
+            $stmtLog = $this->db->prepare("
+                INSERT INTO comments (ticket_id, user_id, text) 
+                VALUES (?, ?, ?)
+            ");
+            $text = "System: Status changed from '{$oldStatusCode}' to '{$statusCode}'";
+            $stmtLog->execute([$id, $userId, $text]);
+        }
+
+        $stmtDel = $this->db->prepare("DELETE FROM ticket_tags WHERE ticket_id = ?");
+        $stmtDel->execute([$id]);
+
+        if (!empty($tags)) {
+            $this->attachTags($id, $tags);
+        }
     }
 
     public function updateStatus(int $ticketId, int $newStatusId): void

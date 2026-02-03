@@ -85,12 +85,35 @@ class TicketController extends BaseController
     /**
      * @throws JsonException
      */
+    public function update(string $id): void
+    {
+        $input = $this->getJsonInput();
+
+        $this->validate($input, [
+            'title' => 'required|string|min:5|max:255',
+            'status_code' => 'required|string|min:2|max:50'
+        ]);
+
+        $this->repository->update(
+            (int)$id,
+            $input['status_code'],
+            $input['title'],
+            $input['description'] ?? '',
+            $input['tags'] ?? []
+        );
+
+        $this->json(['message' => 'Ticket updated']);
+    }
+
+    /**
+     * @throws JsonException
+     */
     public function updateStatus(string $id): void
     {
         $input = $this->getJsonInput();
 
         $this->validate($input, [
-            'status_code' => 'required|int'
+            'status_code' => 'required|string'
         ]);
 
         $newStatusId = $this->repository->findStatusIdByCode($input['status_code']);

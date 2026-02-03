@@ -42,6 +42,7 @@ $router->mount('/api', function () use ($router) {
     $router->get('/tickets', 'TicketController@index');
     $router->post('/tickets', 'TicketController@store');
     $router->get('/tickets/(\d+)', 'TicketController@show');
+    $router->patch('/tickets/(\d+)', 'TicketController@update');
 
     $router->patch('/tickets/(\d+)/status', 'TicketController@updateStatus');
 
