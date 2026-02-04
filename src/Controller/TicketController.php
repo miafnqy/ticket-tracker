@@ -23,12 +23,19 @@ class TicketController extends BaseController
      */
     public function index(): void
     {
+        $filters = [
+            'status' => $_GET['status'] ?? null,
+            'title'  => $_GET['title'] ?? null,
+            'sort_by'   => $_GET['sort_by'] ?? 'created_at',
+            'order_by'  => $_GET['order_by'] ?? 'DESC'
+        ];
+
         $userId = $_SESSION['user_id'];
         $role = $_SESSION['role'];
 
         $filterUserId = ($role === UserRole::ADMIN->value) ? null : $userId;
 
-        $tickets = $this->repository->findAll($filterUserId);
+        $tickets = $this->repository->findAll($filterUserId, $filters);
 
         $this->json(['tickets' => $tickets]);
     }

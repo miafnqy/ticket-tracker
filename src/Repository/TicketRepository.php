@@ -22,16 +22,22 @@ class TicketRepository
         $qb = $this->baseQuery();
 
         if ($userId) {
-            $ab->where('t.user_id', '=', $userId);
+            $qb->where('t.user_id', '=', $userId);
         }
 
         if (!empty($filters['status'])) {
             $qb->where('s.code', '=', $filters['status']);
         }
 
+        if (!empty($filters['title'])) {
+            $qb->where('t.title', 'LIKE', '%' . $filters['title'] . '%');
+        }
+
         $sortMap = [
-            'id' => 't.id', 'title' => 't.title',
-            'created_at' => 't.created_at', 'status_code' => 's.code'
+            'id' => 't.id',
+            'title' => 't.title',
+            'created_at' => 't.created_at',
+            'status_code' => 's.code'
         ];
 
         $field = $sortMap[$filters['sort_by'] ?? ''] ?? 't.created_at';

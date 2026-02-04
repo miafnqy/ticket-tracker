@@ -44,6 +44,42 @@
         </div>
     </div>
 
+    <div class="card mb-3 shadow-sm bg-light">
+        <div class="card-body py-3">
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <input type="text" id="filter-title" class="form-control"
+                           placeholder="🔍 Найти по названию..." oninput="applyFiltersDebounced()">
+                </div>
+
+                <div class="col-md-3">
+                    <select id="filter-status" class="form-select" onchange="applyFilters()">
+                        <option value="">Все статусы</option>
+                        <option value="todo">New</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="review">Ready For Review</option>
+                        <option value="done">Done</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <select id="filter-sort-by" class="form-select" onchange="applyFilters()">
+                        <option value="created_at">📅 По дате создания</option>
+                        <option value="title">🔤 По названию</option>
+                        <option value="status_code">📌 По статусу</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <button class="btn btn-white border w-100" id="btn-order-by" onclick="toggleOrder()">
+                        ⬇️ Новые
+                    </button>
+                    <input type="hidden" id="filter-order-by" value="DESC">
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card shadow-sm">
         <div class="card-body">
             <table class="table table-hover align-middle">
@@ -163,8 +199,20 @@
     const createModal = new bootstrap.Modal(document.getElementById('createModal'));
 
     async function checkAuth() {
+        const title = document.getElementById('filter-title')?.value || '';
+        const status = document.getElementById('filter-status')?.value || '';
+        const sortBy = document.getElementById('filter-sort-by')?.value || 'created_at';
+        const orderBy = document.getElementById('filter-order-by')?.value || 'DESC';
+
+        const params = new URLSearchParams();
+        if (title) params.append('title', title);
+        if (status) params.append('status', status);
+
+        params.append('sort_by', sortBy);
+        params.append('order_by', orderBy);
+
         try {
-            const res = await fetch(`${API_URL}/tickets`);
+            const res = await fetch(`${API_URL}/tickets?${params.toString()}`);
             if (res.ok) {
                 const data = await res.json();
                 showDashboard(data.tickets);
@@ -172,7 +220,7 @@
                 showLogin();
             }
         } catch (e) {
-            console.error('Ошибка сети', e);
+            console.error(e);
         }
     }
 
@@ -316,6 +364,31 @@
             alert('Ошибка обновления');
         }
     });
+
+    let searchTimeout;
+
+    function applyFiltersDebounced() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(applyFilters, 300);
+    }
+
+    function applyFilters() {
+        checkAuth();
+    }
+
+    function toggleOrder() {
+        const btn = document.getElementById('btn-order-by');
+        const input = document.getElementById('filter-order-by');
+
+        if (input.value === 'DESC') {
+            input.value = 'ASC';
+            btn.innerText = '⬆️ Старые';
+        } else {
+            input.value = 'DESC';
+            btn.innerText = '⬇️ Новые';
+        }
+        applyFilters();
+    }
 </script>
 </body>
 </html>
