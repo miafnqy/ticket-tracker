@@ -16,48 +16,25 @@ class TicketRepository
         $this->db = Database::getInstance()->getConnection();
     }
 
-    public function findAll(): array
+    public function findAll(?int $userId = null): array
     {
-        $sql = "
-            SELECT 
-                t.id, 
-                t.user_id, 
-                t.status_id, 
-                t.title, 
-                t.description, 
-                t.created_at, 
-                t.updated_at,
-                s.name as status_name, 
-                s.code as status_code,
-                u.login as user_login,
-                GROUP_CONCAT(tags.name SEPARATOR ',') as tag_names
-            FROM tickets t
-            JOIN statuses s ON t.status_id = s.id
-            JOIN users u ON t.user_id = u.id
-            LEFT JOIN ticket_tags tt ON t.id = tt.ticket_id
-            LEFT JOIN tags ON tt.tag_id = tags.id
-            GROUP BY t.id
-            ORDER BY t.created_at DESC
-        ";
+        $sql = $this->getBaseSelect();
 
-        try {
-            $stmt = $this->db->query($sql);
-            $tickets = $stmt->fetchAll();
-        } catch (\PDOException $e) {
-            error_log("SQL Error in findAll: " . $e->getMessage());
-            return [];
+        if ($userId) {
+            $sql .= " WHERE t.user_id = :user_id";
         }
 
-        foreach ($tickets as &$ticket) {
-            if (!empty($ticket['tag_names'])) {
-                $ticket['tags'] = explode(',', $ticket['tag_names']);
-            } else {
-                $ticket['tags'] = [];
-            }
-            unset($ticket['tag_names']);
+        $sql .= " ORDER BY t.created_at DESC";
+
+        $stmt = $this->db->prepare($sql);
+
+        if ($userId) {
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
         }
 
-        return $tickets;
+        $stmt->execute();
+
+        return $stmt->fetchAll();
     }
 
     public function find(int $id): ?array
