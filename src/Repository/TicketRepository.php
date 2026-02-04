@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Core\Database;
+use App\Core\QueryBuilder;
 use PDO;
 
 class TicketRepository
@@ -16,51 +17,45 @@ class TicketRepository
         $this->db = Database::getInstance()->getConnection();
     }
 
-    public function findAll(?int $userId = null): array
+    public function findAll(?int $userId = null, array $filters = []): array
     {
-        $sql = $this->getBaseSelect();
+        $qb = $this->baseQuery();
 
         if ($userId) {
-            $sql .= " WHERE t.user_id = :user_id";
+            $ab->where('t.user_id', '=', $userId);
         }
 
-        $sql .= " ORDER BY t.created_at DESC";
-
-        $stmt = $this->db->prepare($sql);
-
-        if ($userId) {
-            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        if (!empty($filters['status'])) {
+            $qb->where('s.code', '=', $filters['status']);
         }
 
-        $stmt->execute();
+        $sortMap = [
+            'id' => 't.id', 'title' => 't.title',
+            'created_at' => 't.created_at', 'status_code' => 's.code'
+        ];
 
-        return $stmt->fetchAll();
+        $field = $sortMap[$filters['sort_by'] ?? ''] ?? 't.created_at';
+        $qb->orderBy($field, $filters['order_by'] ?? 'DESC');
+
+        $tickets = $qb->get();
+
+        return $this->eagerLoadTags($tickets);
     }
 
     public function find(int $id): ?array
     {
-        $sql = $this->getBaseSelect() . " WHERE t.id = :id";
+        $qb = $this->baseQuery();
+        $qb->where('t.id', '=', $id);
 
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([':id' => $id]);
+        $ticket = $qb->first();
 
-        $result = $stmt->fetch();
-
-        if (!$result) {
+        if (!$ticket) {
             return null;
         }
 
-        $stmtTags = $this->db->prepare("
-            SELECT t.name 
-            FROM tags t
-            JOIN ticket_tags tt ON t.id = tt.tag_id
-            WHERE tt.ticket_id = ?
-        ");
+        $ticketsWithTags = $this->eagerLoadTags([$ticket]);
 
-        $stmtTags->execute([$id]);
-        $result['tags'] = $stmtTags->fetchAll(PDO::FETCH_COLUMN);
-
-        return $result;
+        return $ticketsWithTags[0];
     }
 
     public function create(int $userId, int $statusId, string $title, string $description): int
@@ -155,23 +150,52 @@ class TicketRepository
         }
     }
 
-    private function getBaseSelect(): string
+    private function eagerLoadTags(array $tickets): array
     {
-        return "
-            SELECT 
-                t.id, 
-                t.user_id, 
-                t.status_id, 
-                t.title, 
-                t.description, 
-                t.created_at, 
-                t.updated_at,
-                s.name as status_name, 
-                s.code as status_code,
-                u.login as user_login
-            FROM tickets t
-            JOIN statuses s ON t.status_id = s.id
-            JOIN users u ON t.user_id = u.id
+        if (empty($tickets)) {
+            return [];
+        }
+
+        $ticketIds = array_column($tickets, 'id');
+
+        $placeholders = str_repeat('?,', count($ticketIds) - 1) . '?';
+
+        $sql = "
+            SELECT t.id, t.name, tt.ticket_id
+            FROM tags t
+            JOIN ticket_tags tt ON t.id = tt.tag_id
+            WHERE tt.ticket_id IN ($placeholders)
         ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($ticketIds);
+        $tags = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $tagsMap = [];
+        foreach ($tags as $tag) {
+            $tagsMap[$tag['ticket_id']][] = $tag['name'];
+        }
+
+        foreach ($tickets as &$ticket) {
+            $ticket['tags'] = $tagsMap[$ticket['id']] ?? [];
+        }
+
+        return $tickets;
+    }
+
+    private function baseQuery(): QueryBuilder
+    {
+        $qb = new QueryBuilder($this->db);
+
+        return $qb
+            ->select([
+                't.id', 't.title', 't.description', 't.created_at', 't.updated_at',
+                't.user_id', 't.status_id',
+                's.name as status_name', 's.code as status_code',
+                'u.login as user_login'
+            ])
+            ->from('tickets', 't')
+            ->join('statuses s', 't.status_id = s.id')
+            ->join('users u', 't.user_id = u.id');
     }
 }

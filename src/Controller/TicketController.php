@@ -95,6 +95,14 @@ class TicketController extends BaseController
             'description' => 'required|string|min:1'
         ]);
 
+        $ticket = $this->repository->find((int)$id);
+
+        if (!$ticket) {
+            $this->error('Ticket not found', 404);
+        }
+
+        $this->checkAccess($ticket);
+
         $this->repository->update(
             (int)$id,
             $input['status_code'],
