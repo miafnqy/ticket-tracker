@@ -1,394 +1,171 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ticket Tracker</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; }
-        .login-container { max-width: 400px; margin-top: 100px; }
         .hidden { display: none !important; }
+        .cursor-pointer { cursor: pointer; }
+        #loader {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.8); z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+        }
     </style>
 </head>
-<body>
+<body class="bg-light">
 
-<div id="login-screen" class="container login-container">
-    <div class="card shadow-sm">
-        <div class="card-body p-4">
-            <h3 class="text-center mb-4">Вход в систему</h3>
-            <form id="login-form">
-                <div class="mb-3">
-                    <label class="form-label">Логин</label>
-                    <input type="text" id="login-input" class="form-control" placeholder="admin" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Пароль</label>
-                    <input type="password" id="password-input" class="form-control" placeholder="password" required>
-                </div>
-                <button type="submit" class="btn btn-primary w-100">Войти</button>
-                <div id="login-error" class="text-danger mt-2 text-center hidden">Неверный логин или пароль</div>
-            </form>
-        </div>
-    </div>
+<div id="loader" class="hidden">
+    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
 </div>
 
-<div id="dashboard-screen" class="container mt-4 hidden">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>📋 Заявки</h2>
-        <div>
-            <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#createModal">
-                + Новая заявка
-            </button>
-            <button id="logout-btn" class="btn btn-outline-danger">Выйти</button>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark hidden" id="navbar">
+    <div class="container">
+        <a class="navbar-brand" href="#">TicketSystem</a>
+        <div class="d-flex align-items-center gap-3">
+            <span class="text-white" id="user-display">Guest</span>
+            <button class="btn btn-outline-light btn-sm" onclick="logout()">Выход</button>
         </div>
     </div>
+</nav>
 
-    <div class="card mb-3 shadow-sm bg-light">
-        <div class="card-body py-3">
-            <div class="row g-2">
-                <div class="col-md-4">
-                    <input type="text" id="filter-title" class="form-control"
-                           placeholder="🔍 Найти по названию..." oninput="applyFiltersDebounced()">
-                </div>
+<div class="container mt-5">
 
-                <div class="col-md-3">
-                    <select id="filter-status" class="form-select" onchange="applyFilters()">
-                        <option value="">Все статусы</option>
-                        <option value="todo">New</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="review">Ready For Review</option>
-                        <option value="done">Done</option>
-                    </select>
-                </div>
-
-                <div class="col-md-3">
-                    <select id="filter-sort-by" class="form-select" onchange="applyFilters()">
-                        <option value="created_at">📅 По дате создания</option>
-                        <option value="title">🔤 По названию</option>
-                        <option value="status_code">📌 По статусу</option>
-                    </select>
-                </div>
-
-                <div class="col-md-2">
-                    <button class="btn btn-white border w-100" id="btn-order-by" onclick="toggleOrder()">
-                        ⬇️ Новые
-                    </button>
-                    <input type="hidden" id="filter-order-by" value="DESC">
+    <div id="auth-screen" class="row justify-content-center">
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h3 class="text-center mb-4">Вход в систему</h3>
+                    <form onsubmit="handleLogin(event)">
+                        <div class="mb-3">
+                            <label class="form-label">Login</label>
+                            <input type="text" id="login" class="form-control" required value="admin">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" id="login-password" class="form-control" required value="password">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Войти</button>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                <tr>
-                    <th>ID</th>
-                    <th>Тема</th>
-                    <th>Статус</th>
-                    <th>Теги</th>
-                    <th>Автор</th>
-                    <th>Создано</th>
-                </tr>
-                </thead>
-                <tbody id="tickets-body">
-                </tbody>
-            </table>
+    <div id="dashboard-screen" class="hidden">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 id="dashboard-title">Мои обращения</h2>
+            <button class="btn btn-primary" id="create-btn" onclick="openCreateModal()">+ Новое обращение</button>
         </div>
+
+        <div class="card mb-3 shadow-sm bg-white">
+            <div class="card-body py-3">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <input type="text" id="filter-title" class="form-control"
+                               placeholder="🔍 Поиск по теме..." oninput="applyFiltersDebounced()">
+                    </div>
+                    <div class="col-md-3">
+                        <select id="filter-status" class="form-select" onchange="applyFilters()">
+                            <option value="">Все статусы</option>
+                            <option value="todo">ToDo</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="review">Ready For Review</option>
+                            <option value="done">Done</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="filter-sort-by" class="form-select" onchange="applyFilters()">
+                            <option value="created_at">📅 По дате</option>
+                            <option value="title">🔤 По теме</option>
+                            <option value="status_code">📌 По статусу</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-secondary w-100" id="btn-order-by" onclick="toggleOrder()">
+                            ⬇️ Новые
+                        </button>
+                        <input type="hidden" id="filter-order-by" value="DESC">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th scope="col" style="width: 5%">ID</th>
+                        <th scope="col" style="width: 30%">Тема</th>
+                        <th scope="col" style="width: 15%">Статус</th>
+                        <th scope="col" style="width: 20%">Теги</th>
+                        <th scope="col" style="width: 15%">Дата</th>
+                        <th scope="col" style="width: 15%">Автор</th>
+                    </tr>
+                    </thead>
+                    <tbody id="tickets-table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <nav class="mt-4 d-flex justify-content-center">
+            <ul class="pagination" id="pagination-container">
+            </ul>
+        </nav>
     </div>
 </div>
 
-<div class="modal fade" id="createModal" tabindex="-1">
+<div class="modal fade" id="ticketModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Создать тикет</h5>
+                <h5 class="modal-title" id="modalTitle">Обращение</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="create-form">
+                <form id="ticket-form">
+                    <input type="hidden" id="ticket-id">
+
                     <div class="mb-3">
                         <label class="form-label">Тема</label>
-                        <input type="text" id="title" class="form-control" required>
+                        <input type="text" id="ticket-title" class="form-control" required>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Описание</label>
-                        <textarea id="description" class="form-control" rows="3" required></textarea>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Статус</label>
-                            <label class="form-label">Статус</label>
-                            <select id="status" class="form-select">
-                                <option value="todo">New (To Do)</option>
-                                <option value="in_progress">In Progress</option>
-                                <option value="review">Ready For Review</option> <option value="done">Done</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Теги (Ctrl+Click)</label>
-                            <select id="tags" class="form-select" multiple>
-                                <option value="Bug">Bug</option>
-                                <option value="Feature">Feature</option>
-                                <option value="Urgent">Urgent</option>
-                            </select>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Создать</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
 
-<div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Редактировать тикет</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="edit-form">
-                    <input type="hidden" id="edit-id"> <div class="mb-3">
-                    <label class="form-label">Тема</label>
-                    <input type="text" id="edit-title" class="form-control" required>
-                </div>
                     <div class="mb-3">
                         <label class="form-label">Описание</label>
-                        <textarea id="edit-description" class="form-control" rows="3" required></textarea>
+                        <textarea id="ticket-desc" class="form-control" rows="4" required></textarea>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Статус</label>
-                            <label class="form-label">Статус</label>
-                            <select id="edit-status" class="form-select">
-                                <option value="todo">To Do</option>
-                                <option value="in_progress">In Progress</option>
-                                <option value="review">Ready For Review</option> <option value="done">Done</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Теги</label>
-                            <select id="edit-tags" class="form-select" multiple>
-                                <option value="Bug">Bug</option>
-                                <option value="Feature">Feature</option>
-                                <option value="Urgent">Urgent</option>
-                            </select>
+
+                    <div class="mb-3">
+                        <label class="form-label d-block">Теги</label>
+                        <div id="tags-container" class="d-flex flex-wrap gap-2">
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Сохранить</button>
+
+                    <div class="mb-3" id="status-group">
+                        <label class="form-label fw-bold">Статус</label>
+                        <select id="ticket-status-select" class="form-select">
+                            <option value="todo">ToDo</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="review">Ready For Review</option>
+                            <option value="done">Done</option>
+                        </select>
+                    </div>
                 </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveTicket()">Сохранить</button>
             </div>
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-<script>
-    const API_URL = 'http://localhost:8080/api';
-
-    const loginScreen = document.getElementById('login-screen');
-    const dashboardScreen = document.getElementById('dashboard-screen');
-    const ticketsBody = document.getElementById('tickets-body');
-    const loginError = document.getElementById('login-error');
-
-    const createModal = new bootstrap.Modal(document.getElementById('createModal'));
-
-    async function checkAuth() {
-        const title = document.getElementById('filter-title')?.value || '';
-        const status = document.getElementById('filter-status')?.value || '';
-        const sortBy = document.getElementById('filter-sort-by')?.value || 'created_at';
-        const orderBy = document.getElementById('filter-order-by')?.value || 'DESC';
-
-        const params = new URLSearchParams();
-        if (title) params.append('title', title);
-        if (status) params.append('status', status);
-
-        params.append('sort_by', sortBy);
-        params.append('order_by', orderBy);
-
-        try {
-            const res = await fetch(`${API_URL}/tickets?${params.toString()}`);
-            if (res.ok) {
-                const data = await res.json();
-                showDashboard(data.tickets);
-            } else {
-                showLogin();
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    }
-
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const login = document.getElementById('login-input').value;
-        const password = document.getElementById('password-input').value;
-
-        const res = await fetch(`${API_URL}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ login, password })
-        });
-
-        if (res.ok) {
-            checkAuth();
-        } else {
-            loginError.classList.remove('hidden');
-        }
-    });
-
-    document.getElementById('logout-btn').addEventListener('click', async () => {
-        try {
-            await fetch(`${API_URL}/logout`, { method: 'POST' });
-        } catch (e) {
-            console.error(e);
-        } finally {
-            window.location.reload();
-        }
-    });
-
-    document.getElementById('create-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const title = document.getElementById('title').value;
-        const description = document.getElementById('description').value;
-        const status = document.getElementById('status').value;
-
-        const selectedTags = Array.from(document.getElementById('tags').selectedOptions)
-            .map(option => option.value);
-
-        const res = await fetch(`${API_URL}/tickets`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, description, status, tags: selectedTags })
-        });
-
-        if (res.ok) {
-            createModal.hide();
-            document.getElementById('create-form').reset();
-            checkAuth();
-        } else {
-            alert('Ошибка при создании!');
-        }
-    });
-
-    function showLogin() {
-        loginScreen.classList.remove('hidden');
-        dashboardScreen.classList.add('hidden');
-    }
-
-    function showDashboard(tickets) {
-        loginScreen.classList.add('hidden');
-        dashboardScreen.classList.remove('hidden');
-        renderTable(tickets);
-    }
-
-    function renderTable(tickets) {
-        ticketsBody.innerHTML = tickets.map(t => {
-            const tagsData = (t.tags || []).join(',');
-
-            return `
-                <tr>
-                    <td>${t.id}</td>
-                    <td class="fw-bold">${t.title}</td>
-                    <td>${getStatusBadge(t.status_code, t.status_name)}</td>
-                    <td>${(t.tags || []).map(tag => `<span class="badge bg-secondary me-1">${tag}</span>`).join('')}</td>
-                    <td class="text-muted small">${t.user_login}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-primary"
-                                onclick="openEditModal(${t.id}, '${t.title}', '${t.description}', '${t.status_code}', '${tagsData}')">
-                            ✏️
-                        </button>
-                    </td>
-                </tr>
-            `}).join('');
-    }
-
-    function getStatusBadge(code, name) {
-        const colors = {
-            'todo': 'secondary',
-            'in_progress': 'primary',
-            'review': 'info',
-            'done': 'success',
-        };
-        const textColor = code === 'review' ? 'text-dark' : '';
-
-        const color = colors[code] || 'light';
-        return `<span class="badge bg-${color} ${textColor}">${name}</span>`;
-    }
-
-    checkAuth();
-
-    const editModal = new bootstrap.Modal(document.getElementById('editModal'));
-
-    window.openEditModal = function(id, title, description, status, tagsString) {
-        document.getElementById('edit-id').value = id;
-        document.getElementById('edit-title').value = title;
-        document.getElementById('edit-description').value = description;
-        document.getElementById('edit-status').value = status;
-
-        const tags = tagsString.split(',').filter(t => t);
-        const select = document.getElementById('edit-tags');
-
-        Array.from(select.options).forEach(option => {
-            option.selected = tags.includes(option.value);
-        });
-
-        editModal.show();
-    };
-
-    document.getElementById('edit-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const id = document.getElementById('edit-id').value;
-        const title = document.getElementById('edit-title').value;
-        const description = document.getElementById('edit-description').value;
-        const status_code = document.getElementById('edit-status').value;
-        const tags = Array.from(document.getElementById('edit-tags').selectedOptions).map(o => o.value);
-
-        const res = await fetch(`${API_URL}/tickets/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, description, status_code, tags })
-        });
-
-        if (res.ok) {
-            editModal.hide();
-            checkAuth();
-        } else {
-            alert('Ошибка обновления');
-        }
-    });
-
-    let searchTimeout;
-
-    function applyFiltersDebounced() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(applyFilters, 300);
-    }
-
-    function applyFilters() {
-        checkAuth();
-    }
-
-    function toggleOrder() {
-        const btn = document.getElementById('btn-order-by');
-        const input = document.getElementById('filter-order-by');
-
-        if (input.value === 'DESC') {
-            input.value = 'ASC';
-            btn.innerText = '⬆️ Старые';
-        } else {
-            input.value = 'DESC';
-            btn.innerText = '⬇️ Новые';
-        }
-        applyFilters();
-    }
-</script>
+<script src="js/app.js"></script>
 </body>
 </html>
