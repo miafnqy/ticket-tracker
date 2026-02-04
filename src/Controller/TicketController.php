@@ -94,6 +94,10 @@ class TicketController extends BaseController
      */
     public function update(string $id): void
     {
+        if ($_SESSION['role'] !== UserRole::ADMIN->value) {
+            $this->error('Access denied', 403);
+        }
+
         $input = $this->getJsonInput();
 
         $this->validate($input, [
@@ -107,8 +111,6 @@ class TicketController extends BaseController
         if (!$ticket) {
             $this->error('Ticket not found', 404);
         }
-
-        $this->checkAccess($ticket);
 
         $this->repository->update(
             (int)$id,
