@@ -1,6 +1,7 @@
 Ticket Tracker API (Pure PHP Architecture)
 
 An example of a REST API and admin panel implementation in pure PHP (without using Laravel/Symfony).
+
 🛠 Technical Stack
 
     Backend: PHP 8.4 (Strict Types), Pure PHP
