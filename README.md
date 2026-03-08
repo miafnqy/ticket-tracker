@@ -1,39 +1,51 @@
-# Ticket Tracker API (Pure PHP Architecture)
+Ticket Tracker API (Pure PHP Architecture)
 
-Пример реализации REST API и админ-панели на чистом PHP (без использования Laravel/Symfony)
+An example of a REST API and admin panel implementation in pure PHP (without using Laravel/Symfony).
+🛠 Technical Stack
 
-## Технический стек
+    Backend: PHP 8.4 (Strict Types), Pure PHP
 
-- **Backend:** PHP 8.4 (Strict Types), Pure PHP
-- **Database:** MySQL 8.0 (PDO, Prepared Statements)
-- **Frontend:** Vanilla JS + Bootstrap 5 (SPA-like подход)
-- **Infrastructure:** Docker, Docker Compose (Nginx + PHP-FPM + MySQL)
+    Database: MySQL 8.0 (PDO, Prepared Statements)
 
-## 🏗 Архитектурные решения
+    Frontend: Vanilla JS + Bootstrap 5 (SPA-like approach)
 
-Я намеренно отказался от фреймворков, чтобы реализовать mini-core с нуля:
-2.  **MVC & Repository Pattern:** Четкое разделение ответственности (Controller -> Service/Repository -> Database).
-3.  **Singleton Database:** Единая точка подключения через PDO.
-4.  **Security:**
-    - Защита от SQL Injection (Prepared Statements).
-    - HttpOnly Cookies для сессий.
-    - Хеширование паролей (`password_hash`).
-5.  **Frontend:** Легковесный клиент на чистом JS (fetch API) без сборщиков (Webpack/Vite), чтобы упростить деплой и CI/CD.
+    Infrastructure: Docker, Docker Compose (Nginx + PHP-FPM + MySQL)
 
-## 🚀 Установка и запуск
+🏗 Architectural Decisions
 
-- **docker-compose up -d --build**
+I intentionally avoided frameworks to implement a mini-core from scratch:
 
-## Примечания
+    MVC & Repository Pattern: Clear separation of concerns (Controller -> Service/Repository -> Database).
 
-- **При первом запуске база данных автоматически создаст таблицы и тестовых пользователей**
+    Singleton Database: Single connection point via PDO.
 
-## Доступы
+    Security:
 
-- **Main Page: http://localhost:8080/app.html**
-- **API: http://localhost:8080/api**
+        SQL Injection protection (Prepared Statements).
 
-## Тестовые аккаунты
+        HttpOnly Cookies for sessions.
 
-- **admin password**
-- **user password**
+        Password hashing (password_hash).
+
+    Frontend: Lightweight pure JS client (fetch API) without bundlers (Webpack/Vite) to simplify deployment and CI/CD.
+
+🚀 Installation & Run
+Bash
+
+docker-compose up -d --build
+
+📌 Notes
+
+    Upon the first run, the database will automatically create the necessary tables and seed test users.
+
+🌐 Access
+
+    Main Page: http://localhost:8080/app.html
+
+    API: http://localhost:8080/api
+
+🔑 Test Accounts
+
+    Login: admin | Password: password
+
+    Login: user | Password: password
